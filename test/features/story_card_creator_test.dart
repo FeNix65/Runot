@@ -1,0 +1,227 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:note_taking_app/features/story_cards/story_cards.dart';
+
+void main() {
+  Widget buildTestSheet({
+    String initialText = 'Simplicity is about subtracting the obvious and adding the meaningful.',
+    String noteTitle = 'Design Laws',
+    String category = 'Philosophy',
+    int noteColorValue = 0,
+    DateTime? noteDate,
+  }) {
+    return MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: StoryCardStudioSheet(
+            initialText: initialText,
+            noteTitle: noteTitle,
+            category: category,
+            noteColorValue: noteColorValue,
+            noteDate: noteDate ?? DateTime(2026, 9, 3),
+          ),
+        ),
+      ),
+    );
+  }
+
+  testWidgets('StoryCardStudioSheet renders initial text, title, and default 9:16 Story ratio', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(buildTestSheet());
+    await tester.pumpAndSettle();
+
+    // Verify header
+    expect(find.text('Story Card Studio'), findsOneWidget);
+
+    // Verify category and formatted date are in the top header
+    expect(find.text('PHILOSOPHY'), findsOneWidget);
+    expect(find.text('SEP 3, 2026'), findsOneWidget);
+
+    // Verify title and quote excerpt are rendered
+    expect(find.text('DESIGN LAWS'), findsOneWidget);
+    expect(
+      find.text('Simplicity is about subtracting the obvious and adding the meaningful.'),
+      findsOneWidget,
+    );
+
+    // Verify aspect ratio switcher has 9:16 Story selected by default
+    expect(find.text('9:16 Story'), findsOneWidget);
+    expect(find.text('1:1 Square'), findsOneWidget);
+    expect(find.text('4:5 Portrait'), findsOneWidget);
+
+    // Verify export buttons
+    expect(find.text('Share Image'), findsOneWidget);
+    expect(find.byIcon(Icons.download_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.copy_rounded), findsOneWidget);
+  });
+
+  testWidgets('StoryCardStudioSheet switches aspect ratios on segment tap', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(buildTestSheet());
+    await tester.pumpAndSettle();
+
+    // Tap 1:1 Square
+    await tester.tap(find.text('1:1 Square'));
+    await tester.pumpAndSettle();
+
+    final segmentedButtonFinder = find.byType(SegmentedButton<StoryCardAspectRatio>);
+    expect(segmentedButtonFinder, findsOneWidget);
+    final segmentedButton = tester.widget<SegmentedButton<StoryCardAspectRatio>>(segmentedButtonFinder);
+    expect(segmentedButton.selected, contains(StoryCardAspectRatio.square));
+
+    // Tap 4:5 Portrait
+    await tester.tap(find.text('4:5 Portrait'));
+    await tester.pumpAndSettle();
+
+    final segmentedButtonAfter = tester.widget<SegmentedButton<StoryCardAspectRatio>>(segmentedButtonFinder);
+    expect(segmentedButtonAfter.selected, contains(StoryCardAspectRatio.portrait));
+  });
+
+  testWidgets('StoryCardStudioSheet cycles luxury theme presets', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(buildTestSheet());
+    await tester.pumpAndSettle();
+
+    // Verify Editorial is present and renders quotation mark
+    expect(find.text('Editorial'), findsOneWidget);
+    expect(find.text('“'), findsOneWidget);
+
+    // Tap Obsidian Aura
+    expect(find.text('Obsidian Aura'), findsOneWidget);
+    await tester.tap(find.text('Obsidian Aura'));
+    await tester.pumpAndSettle();
+
+    // Tap Velvet OLED
+    expect(find.text('Velvet OLED'), findsOneWidget);
+    await tester.tap(find.text('Velvet OLED'));
+    await tester.pumpAndSettle();
+
+    // Tap Frosted Luxe
+    expect(find.text('Frosted Luxe'), findsOneWidget);
+    await tester.tap(find.text('Frosted Luxe'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('StoryCardStudioSheet toggles metadata chips', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(buildTestSheet());
+    await tester.pumpAndSettle();
+
+    // Initially title is visible
+    expect(find.text('DESIGN LAWS'), findsOneWidget);
+
+    // Tap Title chip to toggle off
+    await tester.tap(find.widgetWithText(FilterChip, 'Title'));
+    await tester.pumpAndSettle();
+
+    // Title should no longer be rendered
+    expect(find.text('DESIGN LAWS'), findsNothing);
+
+    // Formatted date and category MUST STILL BE VISIBLE in the top header
+    expect(find.text('SEP 3, 2026'), findsOneWidget);
+    expect(find.text('PHILOSOPHY'), findsOneWidget);
+
+    // Tap Watermark chip to toggle on
+    expect(find.text('Everything App'), findsNothing);
+    await tester.tap(find.widgetWithText(FilterChip, 'Watermark'));
+    await tester.pumpAndSettle();
+
+    // Watermark should now be rendered
+    expect(find.text('Everything App'), findsOneWidget);
+  });
+
+  testWidgets('StoryCardStudioSheet toggles text and title edit mode', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(buildTestSheet());
+    await tester.pumpAndSettle();
+
+    // Edit TextFields are initially hidden
+    expect(find.byType(TextField), findsNothing);
+
+    // Tap Edit Text button in header
+    await tester.tap(find.text('Edit Text'));
+    await tester.pumpAndSettle();
+
+    // Two TextFields are now visible: Title and Quote Text
+    expect(find.byType(TextField), findsNWidgets(2));
+
+    // Enter edited title
+    await tester.enterText(find.widgetWithText(TextField, 'Card Title'), 'NEW AESTHETICS');
+    await tester.pumpAndSettle();
+
+    // Verify title in live card updates
+    expect(
+      find.descendant(
+        of: find.byType(StoryCardPreview),
+        matching: find.text('NEW AESTHETICS'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('StoryCardStudioSheet respects word limits and updates word count badge', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    // 35-word paragraph
+    const longText = 'One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one twenty-two twenty-three twenty-four twenty-five twenty-six twenty-seven twenty-eight twenty-nine thirty thirty-one thirty-two thirty-three thirty-four thirty-five';
+
+    await tester.pumpWidget(buildTestSheet(initialText: longText));
+    await tester.pumpAndSettle();
+
+    // Word count pill shows total words
+    expect(find.text('📝 35 / 35 words'), findsOneWidget);
+
+    // Tap 25 words chip
+    await tester.tap(find.text('25 words'));
+    await tester.pumpAndSettle();
+
+    // Stats pill shows trimmed counter
+    expect(find.text('📝 25 / 35 words'), findsOneWidget);
+
+    // Live preview ends with ellipsis
+    expect(find.textContaining('...'), findsOneWidget);
+
+    // Tap All words to restore full text
+    await tester.tap(find.text('All words'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('📝 35 / 35 words'), findsOneWidget);
+  });
+
+  test('StoryCardConfig guarantees structured title and Tamil detection', () {
+    final configWithFirstLine = StoryCardConfig(
+      title: '',
+      text: 'First line of poem\nSecond line',
+      date: DateTime(2026, 9, 5),
+    );
+    expect(configWithFirstLine.resolvedTitle, 'First line of poem');
+
+    final blankConfig = StoryCardConfig(
+      title: '   ',
+      text: '   ',
+      date: DateTime(2026, 9, 5),
+    );
+    expect(blankConfig.resolvedTitle, 'Reflection');
+
+    // Tamil detection
+    expect(StoryCardConfig.containsTamil('பிறந்தநாள் வாழ்த்துக்கள்'), isTrue);
+    expect(StoryCardConfig.containsTamil('Hello world'), isFalse);
+  });
+}
